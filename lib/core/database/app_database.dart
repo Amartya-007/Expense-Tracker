@@ -38,7 +38,10 @@ class AppDatabase {
         is_dark_mode INTEGER NOT NULL DEFAULT 0,
         home_section_order TEXT NOT NULL DEFAULT '[]',
         is_onboarded INTEGER NOT NULL DEFAULT 0,
-        onboarding_version INTEGER NOT NULL DEFAULT 0
+        onboarding_version INTEGER NOT NULL DEFAULT 0,
+        accent_color_value INTEGER NOT NULL DEFAULT 4278235879,
+        haptics_enabled INTEGER NOT NULL DEFAULT 1,
+        sms_background_listener_enabled INTEGER NOT NULL DEFAULT 1
       );
 
       CREATE TABLE IF NOT EXISTS accounts (
@@ -156,6 +159,29 @@ class AppDatabase {
 
       CREATE TABLE IF NOT EXISTS custom_tags (
         name TEXT PRIMARY KEY
+      );
+
+      CREATE TABLE IF NOT EXISTS custom_parser_rules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        keyword TEXT NOT NULL DEFAULT '',
+        pattern TEXT NOT NULL DEFAULT '',
+        is_regex INTEGER NOT NULL DEFAULT 0,
+        category_name TEXT NOT NULL DEFAULT 'Other',
+        account_ref TEXT NOT NULL DEFAULT '',
+        is_debit INTEGER NOT NULL DEFAULT 1,
+        is_enabled INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS anomaly_metadata (
+        id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        category_name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        detected_at TEXT NOT NULL,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
+        is_expected INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS audit_logs (

@@ -7,7 +7,10 @@ class AuditLogService {
   AuditLogService(this.repository);
 
   static int _counter = 0;
-  String _generateId() => 'aud_${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
+
+  String _generateId() {
+    return 'aud_${DateTime.now().microsecondsSinceEpoch}_${++_counter}';
+  }
 
   /// Safe logging method that NEVER throws or interrupts application execution.
   Future<void> logEvent(AuditLog log) async {

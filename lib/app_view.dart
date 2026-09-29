@@ -30,11 +30,12 @@ class _MyAppViewState extends State<MyAppView> {
     return AnimatedBuilder(
       animation: _appState,
       builder: (context, _) {
+        final accent = Color(_appState.profile.accentColorValue);
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'RupeeCommand',
-          theme: AppTheme.lightTheme(),
-          darkTheme: AppTheme.darkTheme(),
+          theme: AppTheme.lightTheme(accentColor: accent),
+          darkTheme: AppTheme.darkTheme(accentColor: accent),
           themeMode: _appState.profile.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           home: !_appState.isInitialized
               ? Scaffold(

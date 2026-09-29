@@ -42,12 +42,14 @@ class VoiceParser {
     String category = 'Other';
     String merchant = '';
 
-    if (lower.contains('swiggy') || lower.contains('zomato') || lower.contains('dinner') || lower.contains('lunch') || lower.contains('food') || lower.contains('chai')) {
+    if (lower.contains('swiggy') || lower.contains('zomato') || lower.contains('dinner') || lower.contains('lunch') || lower.contains('food') || lower.contains('chai') || lower.contains('coffee') || lower.contains('cafe')) {
       category = 'Food & Dining';
       if (lower.contains('swiggy')) {
         merchant = 'Swiggy';
       } else if (lower.contains('zomato')) {
         merchant = 'Zomato';
+      } else if (lower.contains('coffee')) {
+        merchant = 'Coffee Shop';
       }
     } else if (lower.contains('uber') || lower.contains('ola') || lower.contains('cab') || lower.contains('auto') || lower.contains('fuel') || lower.contains('petrol')) {
       category = 'Transport';

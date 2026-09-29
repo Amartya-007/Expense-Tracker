@@ -6,7 +6,10 @@ import 'package:expensetracker/theme/app_theme.dart';
 import 'package:expensetracker/utils/currency_formatter.dart';
 import 'package:expensetracker/screens/insights/monthly_money_flow_screen.dart';
 import 'package:expensetracker/screens/insights/monthly_review_screen.dart';
-import 'package:expensetracker/utils/date_formatter.dart';
+import 'package:expensetracker/services/spending_analytics_service.dart';
+import 'package:expensetracker/services/haptic_service.dart';
+
+import '../../utils/date_formatter.dart';
 
 class InsightsScreen extends StatefulWidget {
   final AppState state;
@@ -61,6 +64,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final sortedMerchants = merchantMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    // Advanced analytics
+    final anomalies = SpendingAnalyticsService.detectAnomalies(widget.state.transactions);
+    final commitments = SpendingAnalyticsService.analyzeCommitments(widget.state.filteredTransactions, widget.state.recurringBills);
+    final savingsProjection = SpendingAnalyticsService.calculateSavingsProjection(widget.state.filteredTransactions, initialIncomeGoal: widget.state.profile.monthlyIncomeGoal);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Financial Insights & Analytics'),
@@ -92,6 +100,186 @@ class _InsightsScreenState extends State<InsightsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ANOMALIES / SPENDING SPIKE ALERTS
+            if (anomalies.isNotEmpty) ...[
+              Text(
+                'Spending Spike & Anomaly Alerts',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...anomalies.map((anomaly) => Card(
+                    color: isDark ? const Color(0xFF2A1B1B) : const Color(0xFFFEF2F2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: AppColors.expenseRed, width: 0.8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: AppColors.expenseRed, size: 28),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  anomaly.message,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Amount: ${CurrencyFormatter.format(anomaly.amount, isPrivacyMode: isPrivacy)} (Normal avg: ${CurrencyFormatter.format(anomaly.historicalAverage, isPrivacyMode: isPrivacy)})',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 20),
+                            onPressed: () {
+                              HapticService.selection();
+                              setState(() {
+                                anomaly.isDismissed = true;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 16),
+            ],
+
+            // FIXED COMMITMENTS VS DISCRETIONARY CARD
+            Text(
+              'Commitments vs. Discretionary Spending',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Estimated Fixed Commitments', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.format(commitments.fixedCommitmentsTotal, isPrivacyMode: isPrivacy),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.warningOrange),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text('Discretionary Spending', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.format(commitments.discretionaryTotal, isPrivacyMode: isPrivacy),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.infoBlue),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Estimated Monthly Disposable:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text(
+                          CurrencyFormatter.format(commitments.estimatedDisposable, isPrivacyMode: isPrivacy),
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.incomeGreen),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // SAVINGS VELOCITY PROJECTION CARD
+            Text(
+              'Savings Velocity Projection',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Actual Savings to Date', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.format(savingsProjection.actualSavings, isPrivacyMode: isPrivacy),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text('Projected Month-End', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.format(savingsProjection.projectedMonthEndSavings, isPrivacyMode: isPrivacy),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: savingsProjection.projectedMonthEndSavings >= 0 ? AppColors.incomeGreen : AppColors.expenseRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Daily spending rate: ${CurrencyFormatter.format(savingsProjection.dailySpendingRate, isPrivacyMode: isPrivacy)}/day • ${savingsProjection.remainingDays} days remaining in month.',
+                      style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // PERIOD OVERVIEW CARD
             Card(
               child: Padding(

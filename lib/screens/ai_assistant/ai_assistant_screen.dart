@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:expensetracker/providers/app_state.dart';
 import 'package:expensetracker/models/transaction.dart';
 import 'package:expensetracker/theme/app_theme.dart';
 import 'package:expensetracker/utils/currency_formatter.dart';
+import 'package:expensetracker/services/ai/llm_service.dart';
+import 'package:expensetracker/services/ai/rule_based_fallback.dart';
+import 'package:expensetracker/services/ai/query_executor.dart';
+import 'package:expensetracker/services/ai/answer_formatter.dart';
 
 class AIMessage {
   final String text;
@@ -25,28 +30,37 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   final List<AIMessage> _messages = [];
+  final LlmService _llmService = LlmService();
 
   final List<String> _suggestedQuestions = const [
     'How much did I spend on food this month?',
     'What did I spend at Amazon?',
-    'How much money did I receive this month?',
+    'How much money do I have in bank accounts?',
+    'Am I over budget?',
+    'Show upcoming recurring bills',
   ];
 
   @override
   void initState() {
     super.initState();
-    _messages.add(AIMessage(
-      text:
-      'Hello ${widget.state.profile.name}! I am your AI Money Assistant. Ask me anything about your recorded transactions, bills, or spending patterns.',
-      isUser: false,
-    ));
+    _initLlm();
+    _messages.add(
+      AIMessage(
+        text: 'Hello ${widget.state.profile.name}! I am your offline AI Money Assistant. Ask me anything about your recorded transactions, budgets, or balances.',
+        isUser: false,
+      ),
+    );
 
-    // When the keyboard opens, keep the latest message visible.
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
         Future.delayed(const Duration(milliseconds: 300), _scrollToBottom);
       }
     });
+  }
+
+  Future<void> _initLlm() async {
+    await _llmService.init();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -69,16 +83,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.state.profile.isDarkMode;
-
-    // Keyboard height (0 when closed) and system nav bar height.
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final systemBottom = MediaQuery.of(context).viewPadding.bottom;
-    // When the keyboard is open it already covers the nav bar area,
-    // so only use the larger of the two.
     final bottomSpace = keyboardHeight > 0 ? keyboardHeight : systemBottom;
 
     return Scaffold(
-      // We handle the keyboard inset manually below for consistent behavior.
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Row(
@@ -88,9 +97,19 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             Text('AI Money Assistant'),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Local Model Settings',
+            icon: Icon(
+              Icons.memory_rounded,
+              color: _llmService.status == LlmStatus.ready ? AppColors.incomeGreen : Colors.grey,
+            ),
+            onPressed: _showModelSettingsDialog,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: GestureDetector(
-        // Tap outside the input to dismiss the keyboard.
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: Column(
@@ -106,8 +125,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: Row(
-                      mainAxisAlignment:
-                      msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      mainAxisAlignment: msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (!msg.isUser)
@@ -127,10 +145,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: msg.isUser
                                   ? null
-                                  : Border.all(
-                                  color: isDark
-                                      ? AppColors.darkCardBorder
-                                      : AppColors.lightCardBorder),
+                                  : Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.lightCardBorder),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,13 +156,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                                     fontSize: 14,
                                     color: msg.isUser
                                         ? Colors.white
-                                        : (isDark
-                                        ? AppColors.darkTextPrimary
-                                        : AppColors.lightTextPrimary),
+                                        : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                                   ),
                                 ),
-                                if (msg.matchedTransactions != null &&
-                                    msg.matchedTransactions!.isNotEmpty) ...[
+                                if (msg.matchedTransactions != null && msg.matchedTransactions!.isNotEmpty) ...[
                                   const SizedBox(height: 10),
                                   const Divider(height: 1),
                                   const SizedBox(height: 6),
@@ -158,11 +170,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                                         child: Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text('• ${t.merchant}',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold, fontSize: 12)),
+                                            Text('• ${t.merchant}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                             Text(
-                                              CurrencyFormatter.format(t.amount),
+                                              CurrencyFormatter.format(t.amount, isPrivacyMode: widget.state.profile.isPrivacyModeEnabled),
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
@@ -205,7 +215,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Input Field: lifts above keyboard, clears system nav bar
+            // Input Field
             AnimatedPadding(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOut,
@@ -222,12 +232,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                         decoration: InputDecoration(
                           hintText: 'Ask AI e.g. How much spent on food...',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
                         onSubmitted: (val) {
                           _handleUserQuery(val);
-                          _focusNode.requestFocus(); // keep keyboard open
+                          _focusNode.requestFocus();
                         },
                       ),
                     ),
@@ -248,50 +257,99 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   void _handleUserQuery(String query) {
     if (query.trim().isEmpty) return;
-    final q = query.trim().toLowerCase();
     _textController.clear();
 
     setState(() {
       _messages.add(AIMessage(text: query, isUser: true));
     });
 
-    // AI Response generation
-    String responseText = '';
-    List<TransactionItem> matched = [];
+    // Parse via RuleBasedFallback (or LLM if ready) into QuerySpec
+    final spec = RuleBasedFallback.parse(query);
 
-    if (q.contains('food') || q.contains('dinner') || q.contains('swiggy')) {
-      final foodTx = widget.state.transactions
-          .where((t) => t.categoryName.toLowerCase().contains('food'))
-          .toList();
-      final total = foodTx.fold(0.0, (sum, t) => sum + t.amount);
-      responseText =
-      'You spent ${CurrencyFormatter.format(total)} on Food & Dining across ${foodTx.length} transactions this period.';
-      matched = foodTx;
-    } else if (q.contains('amazon')) {
-      final amzTx = widget.state.transactions
-          .where((t) => t.merchant.toLowerCase().contains('amazon'))
-          .toList();
-      final total = amzTx.fold(0.0, (sum, t) => sum + t.amount);
-      responseText =
-      'You spent ${CurrencyFormatter.format(total)} at Amazon across ${amzTx.length} transactions.';
-      matched = amzTx;
-    } else if (q.contains('income') || q.contains('received') || q.contains('salary')) {
-      final inc = widget.state.periodIncome;
-      responseText = 'You received ${CurrencyFormatter.format(inc)} in total income this period.';
-    } else {
-      responseText =
-      'Based on your records, your total spending this month is ${CurrencyFormatter.format(widget.state.periodSpent)} across ${widget.state.filteredTransactions.length} transactions.';
-    }
+    // Execute query against AppState data via QueryExecutor
+    final result = QueryExecutor.execute(
+      spec: spec,
+      transactions: widget.state.transactions,
+      accounts: widget.state.accounts,
+      budgets: widget.state.budgets,
+      goals: widget.state.goals,
+      recurringBills: widget.state.recurringBills,
+    );
+
+    // Format response via AnswerFormatter
+    final answerText = AnswerFormatter.format(spec, result);
 
     setState(() {
       _messages.add(AIMessage(
-        text: responseText,
+        text: answerText,
         isUser: false,
-        matchedTransactions: matched,
+        matchedTransactions: result.transactions,
       ));
     });
 
-    // Scroll to the newest message after the frame renders.
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _showModelSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Offline LLM Model Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Status: ${_llmService.status == LlmStatus.ready ? 'Ready (${_llmService.modelFilePath?.split('/').last})' : 'Not Installed (Using Rule-Based Fallback)'}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _llmService.status == LlmStatus.ready ? AppColors.incomeGreen : Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'RupeeCommand runs 100% offline. You can optionally sideload a quantized GGUF model file (0.5B - 1.5B params) from your device storage.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          if (_llmService.status == LlmStatus.ready)
+            TextButton(
+              onPressed: () async {
+                final nav = Navigator.of(ctx);
+                final messenger = ScaffoldMessenger.of(ctx);
+                await _llmService.removeModel();
+                nav.pop();
+                setState(() {});
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Local model removed.')),
+                );
+              },
+              child: const Text('Remove Model', style: TextStyle(color: AppColors.expenseRed)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final nav = Navigator.of(ctx);
+              final messenger = ScaffoldMessenger.of(ctx);
+              nav.pop();
+              final picked = await FilePicker.platform.pickFiles(type: FileType.any);
+              if (picked != null && picked.files.single.path != null) {
+                await _llmService.copyToAppStorage(picked.files.single.path!);
+                setState(() {});
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Local GGUF model loaded successfully.')),
+                );
+              }
+            },
+            child: const Text('Select .gguf File'),
+          ),
+        ],
+      ),
+    );
   }
 }

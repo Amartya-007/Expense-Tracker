@@ -11,6 +11,16 @@ class AppColors {
   static const Color warningOrange = Color(0xFFF59E0B); // Amber/Orange
   static const Color infoBlue = Color(0xFF3B82F6); // Blue
 
+  // Available Accent Options
+  static const List<Color> accentOptions = [
+    Color(0xFF0D9488), // Teal
+    Color(0xFF10B981), // Emerald
+    Color(0xFF3B82F6), // Blue
+    Color(0xFF6366F1), // Indigo
+    Color(0xFFF59E0B), // Amber
+    Color(0xFFF43F5E), // Rose
+  ];
+
   // Light Theme Neutral Backgrounds & Cards
   static const Color lightBackground = Color(0xFFF8FAFC); // Slate 50
   static const Color lightSurface = Color(0xFFFFFFFF);
@@ -29,14 +39,14 @@ class AppColors {
 }
 
 class AppTheme {
-  static ThemeData lightTheme() {
+  static ThemeData lightTheme({Color accentColor = AppColors.primary}) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: AppColors.primary,
+      primaryColor: accentColor,
       scaffoldBackgroundColor: AppColors.lightBackground,
-      colorScheme: const ColorScheme.light(
-        primary: AppColors.primary,
+      colorScheme: ColorScheme.light(
+        primary: accentColor,
         secondary: AppColors.infoBlue,
         surface: AppColors.lightSurface,
         error: AppColors.expenseRed,
@@ -69,9 +79,9 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.lightSurface,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: accentColor,
         unselectedItemColor: AppColors.lightTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
@@ -79,14 +89,14 @@ class AppTheme {
     );
   }
 
-  static ThemeData darkTheme() {
+  static ThemeData darkTheme({Color accentColor = AppColors.primaryDark}) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: AppColors.primaryDark,
+      primaryColor: accentColor,
       scaffoldBackgroundColor: AppColors.darkBackground,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primaryDark,
+      colorScheme: ColorScheme.dark(
+        primary: accentColor,
         secondary: AppColors.infoBlue,
         surface: AppColors.darkSurface,
         error: AppColors.expenseRed,
@@ -119,9 +129,9 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.darkSurface,
-        selectedItemColor: AppColors.primaryDark,
+        selectedItemColor: accentColor,
         unselectedItemColor: AppColors.darkTextSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 8,

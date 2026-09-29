@@ -5,6 +5,7 @@ class UserProfile {
   bool isPrivacyModeEnabled;
   bool hideBalances;
   bool isDarkMode;
+  int accentColorValue;
   List<String> homeSectionOrder;
   bool isOnboarded;
   int onboardingVersion;
@@ -16,6 +17,7 @@ class UserProfile {
     this.isPrivacyModeEnabled = false,
     this.hideBalances = false,
     this.isDarkMode = false,
+    this.accentColorValue = 0xFF0D9488,
     this.homeSectionOrder = const [
       'balance',
       'cash_flow',
@@ -37,6 +39,7 @@ class UserProfile {
     'isPrivacyModeEnabled': isPrivacyModeEnabled,
     'hideBalances': hideBalances,
     'isDarkMode': isDarkMode,
+    'accentColorValue': accentColorValue,
     'homeSectionOrder': homeSectionOrder,
     'isOnboarded': isOnboarded,
     'onboardingVersion': onboardingVersion,
@@ -52,6 +55,7 @@ class UserProfile {
       isPrivacyModeEnabled: json['isPrivacyModeEnabled'] ?? false,
       hideBalances: json['hideBalances'] ?? false,
       isDarkMode: json['isDarkMode'] ?? false,
+      accentColorValue: (json['accentColorValue'] as num?)?.toInt() ?? 0xFF0D9488,
       homeSectionOrder: List<String>.from(
         json['homeSectionOrder'] ??
             [

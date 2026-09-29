@@ -6,6 +6,7 @@ import 'package:expensetracker/utils/currency_formatter.dart';
 import 'package:expensetracker/utils/date_formatter.dart';
 import 'package:expensetracker/screens/transactions/transaction_detail_screen.dart';
 import 'package:expensetracker/screens/transactions/search_screen.dart';
+import 'package:expensetracker/services/haptic_service.dart';
 
 class TransactionsScreen extends StatefulWidget {
   final AppState state;
@@ -196,60 +197,128 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                         ? AppColors.incomeGreen
                                         : AppColors.infoBlue);
 
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: color.withValues(alpha: 0.12),
-                                    child: Icon(
-                                      isExpense
-                                          ? Icons.shopping_bag_outlined
-                                          : (t.type == TransactionType.income
-                                              ? Icons.arrow_downward_rounded
-                                              : Icons.swap_horiz_rounded),
-                                      color: color,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          t.merchant,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                        ),
-                                      ),
-                                      if (t.receiptImagePath != null) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.receipt_rounded, size: 14, color: AppColors.primary),
+                                return Dismissible(
+                                  key: Key(t.id),
+                                  background: Container(
+                                    color: AppColors.infoBlue,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.edit_rounded, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text('Edit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                       ],
-                                    ],
-                                  ),
-                                  subtitle: Text(
-                                    '${t.categoryName} • ${t.accountName}${t.note.isNotEmpty ? ' • ${t.note}' : ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                     ),
                                   ),
-                                  trailing: Text(
-                                    CurrencyFormatter.format(t.amount, isPrivacyMode: isPrivacy, showSign: true),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: color,
+                                  secondaryBackground: Container(
+                                    color: AppColors.expenseRed,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        SizedBox(width: 8),
+                                        Icon(Icons.delete_rounded, color: Colors.white),
+                                      ],
                                     ),
                                   ),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => TransactionDetailScreen(state: widget.state, transaction: t),
-                                      ),
-                                    );
+                                  confirmDismiss: (direction) async {
+                                    HapticService.selection();
+                                    if (direction == DismissDirection.endToStart) {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Delete Transaction'),
+                                          content: Text('Are you sure you want to delete ${t.merchant} (${CurrencyFormatter.format(t.amount)})?'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.expenseRed),
+                                              onPressed: () => Navigator.pop(context, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      return confirm ?? false;
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => TransactionDetailScreen(state: widget.state, transaction: t),
+                                        ),
+                                      );
+                                      return false;
+                                    }
                                   },
+                                  onDismissed: (direction) async {
+                                    if (direction == DismissDirection.endToStart) {
+                                      HapticService.warning();
+                                      await widget.state.deleteTransaction(t.id);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Deleted transaction ${t.merchant}'), behavior: SnackBarBehavior.floating),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: color.withValues(alpha: 0.12),
+                                      child: Icon(
+                                        isExpense
+                                            ? Icons.shopping_bag_outlined
+                                            : (t.type == TransactionType.income
+                                                ? Icons.arrow_downward_rounded
+                                                : Icons.swap_horiz_rounded),
+                                        color: color,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            t.merchant,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                          ),
+                                        ),
+                                        if (t.receiptImagePath != null) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.receipt_rounded, size: 14, color: AppColors.primary),
+                                        ],
+                                      ],
+                                    ),
+                                    subtitle: Text(
+                                      '${t.categoryName} • ${t.accountName}${t.note.isNotEmpty ? ' • ${t.note}' : ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                      ),
+                                    ),
+                                    trailing: Text(
+                                      CurrencyFormatter.format(t.amount, isPrivacyMode: isPrivacy, showSign: true),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: color,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => TransactionDetailScreen(state: widget.state, transaction: t),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 );
                               },
                             ),

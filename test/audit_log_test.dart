@@ -150,7 +150,6 @@ void main() {
       merchant: 'Cafe',
       accountName: 'Cash',
     );
-    await Future.delayed(const Duration(milliseconds: 15));
     await service.logTransactionUpdated(
       id: 'tx_99',
       title: 'Cafe',
