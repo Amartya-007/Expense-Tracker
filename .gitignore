@@ -1,0 +1,79 @@
+# Flutter and Dart generated files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/doc/api/
+**/build/
+**/coverage/
+**/ios/Flutter/.last_build_id
+**/Flutter/ephemeral/
+.widget_preview/
+
+# Flutter/Dart tool outputs
+*.symbols
+*.symbols.zip
+app.*.symbols
+app.*.map.json
+
+# IDE metadata and local editor settings
+.idea/
+.qodo/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.trae
+.graphify
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/local.properties
+**/key.properties
+**/*.jks
+**/*.keystore
+
+# Android and Apple generated files
+**/.gradle/
+**/captures/
+**/.cxx/
+**/Pods/
+**/DerivedData/
+**/xcuserdata/
+**/*.generated/
+**/GeneratedPluginRegistrant.java
+**/Runner/GeneratedPluginRegistrant.*
+
+# Xcode user/project artifacts
+**/*.mode1v3
+**/*.mode2v3
+**/*.pbxuser
+**/*.perspectivev3
+**/*.moved-aside
+**/ServiceDefinitions.json
+
+# Operating-system and temporary files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.class
+*.log
+*.pyc
+*.swp
+*.tmp
+*.temp
+*.bak
+
+# Miscellaneous local tooling
+.atom/
+.build/
+.buildlog/
+.history/
+.svn/
+.swiftpm/
+migrate_working_dir/
